@@ -35,3 +35,16 @@ _zh_highlight() {
 
 autoload -Uz add-zle-hook-widget
 add-zle-hook-widget line-pre-redraw _zh_highlight
+
+# Refresh command cache after installing new tools
+zh-reload() {
+  rehash
+  _zh_rebuild_cmds
+  unset _zh_prev_buffer
+  echo 'zsh-highlighter: command cache reloaded'
+}
+
+# Rebuild command cache on directory change
+_zh_chpwd() { _zh_rebuild_cmds; unset _zh_prev_buffer; }
+autoload -Uz add-zsh-hook
+add-zsh-hook chpwd _zh_chpwd
