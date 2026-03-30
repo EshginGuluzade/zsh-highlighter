@@ -152,7 +152,7 @@
         "zsh -n plugin/zsh-highlighter.zsh passes syntax check"
       ],
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

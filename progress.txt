@@ -81,4 +81,12 @@
 - If binary not found at load time, plugin returns silently (return 0)
 - zsh -n syntax check passes
 
+## US-006 — Zsh plugin: zh-reload and chpwd hook (complete)
+- zh-reload function: calls rehash, _zh_rebuild_cmds, unsets _zh_prev_buffer, prints confirmation message
+- _zh_chpwd function: calls _zh_rebuild_cmds and unsets _zh_prev_buffer (one-liner with semicolons to save lines)
+- chpwd hook registered via `autoload -Uz add-zsh-hook` and `add-zsh-hook chpwd _zh_chpwd`
+- _zh_rebuild_cmds was already extracted in US-005, so plugin init already calls it (no duplication)
+- Plugin is exactly 50 lines — had to compact _zh_chpwd to a one-liner and remove some blank lines to fit
+- zsh -n syntax check passes
+
 ---
