@@ -1,0 +1,22 @@
+## Codebase Patterns
+- Rust binary with zero external dependencies (no regex crate, no serde, no syntect)
+- All tokenizer tests use byte offsets, not char offsets
+- region_highlight format: "{start} {end} {style}" with 0-indexed byte offsets
+- $_ZH_CMDS env var is newline-separated list of known commands
+- When $_ZH_CMDS is empty, all commands default to valid (fg=green,bold)
+- Reserved words list: if then else elif fi for in while until do done case esac function select repeat time
+- { } are tokenized as Operator tokens initially, then restyled to ReservedWord by the command position pass
+- [[ ]] are tokenized as Operator tokens initially, then restyled to ReservedWord by the command position pass
+- ( ) remain Operator tokens always
+
+## Tokenizer Design
+- The tokenizer MUST be a single-pass character-by-character state machine
+- States: Default, InWord, InSingleQuote, InDoubleQuote, InAnsiCQuote, InBacktick, InComment
+- In Default state: skip whitespace, detect string openers, detect operators, detect comment start, otherwise start a Word
+- '#' only starts a comment when it would begin a new token (preceded by whitespace or at position 0) — NOT mid-word
+- $' (dollar + single quote) starts an ANSI-C string — dollar followed by anything else is just part of a Word
+- Line continuation (backslash + newline) is treated as whitespace and skipped
+- All Word tokens initially have command_position: false — command position is determined in a second pass (US-003)
+- The command position pass walks the token list with a boolean flag 'expect_command' (starts true). After operators | || && ; ;; ( and after reserved words then/else/elif/do/time/!, set expect_command=true. After for/case/select/in/[[, set expect_command=false.
+
+---
