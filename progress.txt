@@ -60,4 +60,14 @@
 - Changed mark_command_positions signature from &mut Vec<Token> to &mut [Token] per clippy
 - 27 new tests for command position (74 total)
 
+## US-004 — Classifier: map tokens to region_highlight styles (complete)
+- classify() takes tokens slice, input string, and known_commands HashSet
+- Added `input: &str` parameter to classify() so it can extract command words via &input[token.start..token.end]
+- Style mapping: Word(cmd=true)+known → fg=green,bold; Word(cmd=true)+unknown → fg=red,underline; Word(cmd=false) → skip (no highlight); ReservedWord → fg=yellow,bold; String → fg=yellow; Comment → fg=8; Operator → fg=cyan
+- When known_commands is empty, all command-position words default to fg=green,bold (safe default)
+- Arguments (Word with command_position=false) produce NO highlight entry — they are simply skipped
+- Updated main.rs to pass `input` as second arg to classify()
+- 13 new tests: unit tests for each token type mapping + 5 end-to-end tests using tokenize+mark_command_positions+classify
+- 87 total tests passing
+
 ---

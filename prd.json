@@ -107,7 +107,7 @@
         "cargo clippy passes with no warnings"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
