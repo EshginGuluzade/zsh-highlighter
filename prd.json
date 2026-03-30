@@ -51,7 +51,7 @@
         "cargo clippy passes with no warnings"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "This is the largest story. Build the tokenizer as a single-pass state machine with states like: Default, InWord, InSingleQuote, InDoubleQuote, InAnsiCQuote, InBacktick, InComment. All Word tokens should have command_position: false for now — command position is handled in US-003."
     },
     {

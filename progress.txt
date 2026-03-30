@@ -27,4 +27,19 @@
 - Used #[allow(dead_code)] on TokenType enum since variants aren't constructed yet (will be in US-002)
 - Binary with no args or empty string exits code 0 with no output
 
+## US-002 — Complete tokenizer (complete)
+- Single-pass state machine with 7 states: Default, InWord, InSingleQuote, InDoubleQuote, InAnsiCQuote, InBacktick, InComment
+- match_operator() helper does greedy operator matching (<<< before <<, || before |, etc.)
+- In Default state: whitespace skipped, line continuations skipped, then detect comment/#, ANSI-C $', quotes, operators, otherwise start Word
+- In InWord state: line continuation BREAKS the word (emits word, returns to Default) — not just skipped
+- String openers (', ", `) break a word mid-token and start a new String token (adjacency like echo"hello")
+- Operators break words too (adjacency like echo>file)
+- # only starts a comment when at position 0 or preceded by whitespace — checked via bytes[i-1]
+- $' starts ANSI-C string only when $ is immediately followed by ' — otherwise $ is just part of a word
+- Single [ and ] are NOT operators — they're part of words. Only [[ and ]] are operators.
+- Unterminated strings/backticks extend to end of input
+- End-of-input flush: after the loop, check state and emit any pending token
+- The loop also has internal end-of-input checks at the start of each state (InWord, InSingleQuote, etc.) that emit and break
+- 47 tests total covering all acceptance criteria
+
 ---
