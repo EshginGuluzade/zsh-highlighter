@@ -89,4 +89,12 @@
 - Plugin is exactly 50 lines — had to compact _zh_chpwd to a one-liner and remove some blank lines to fit
 - zsh -n syntax check passes
 
+## US-007 — Integration tests for common shell patterns (complete)
+- Created src/lib.rs to re-export tokenizer and classifier modules as public (needed for integration tests to access them)
+- tests/integration.rs with 14 tests covering all acceptance criteria
+- Helper function highlight(input, known) runs full tokenize+mark_command_positions+classify pipeline
+- Tests cover: valid/invalid commands, strings (double-quoted, ANSI-C), pipes, if/then/fi, comments (standalone + inline), empty input, for/in/do/done, redirects, braces, double brackets, logical operators (&&, ||)
+- main.rs still uses `mod` declarations (binary crate) while lib.rs uses `pub mod` (library crate) — both compile fine, tests run against both
+- 101 total tests passing (87 unit + 14 integration)
+
 ---
