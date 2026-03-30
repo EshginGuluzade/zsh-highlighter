@@ -19,4 +19,12 @@
 - All Word tokens initially have command_position: false — command position is determined in a second pass (US-003)
 - The command position pass walks the token list with a boolean flag 'expect_command' (starts true). After operators | || && ; ;; ( and after reserved words then/else/elif/do/time/!, set expect_command=true. After for/case/select/in/[[, set expect_command=false.
 
+## US-001 — Project scaffolding (complete)
+- Cargo.toml with zero deps and release profile (opt-level=3, lto=true, codegen-units=1, panic=abort, strip=true)
+- main.rs: reads argv[1] (exits silently if missing/empty), reads $_ZH_CMDS into HashSet, calls tokenize→classify→print
+- tokenizer.rs: Token struct + TokenType enum + stub tokenize() returning empty Vec
+- classifier.rs: Highlight struct + stub classify() returning empty Vec
+- Used #[allow(dead_code)] on TokenType enum since variants aren't constructed yet (will be in US-002)
+- Binary with no args or empty string exits code 0 with no output
+
 ---

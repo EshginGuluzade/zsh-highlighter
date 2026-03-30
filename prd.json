@@ -24,7 +24,7 @@
         "Running the binary with an empty string arg exits with code 0 and produces no output"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
