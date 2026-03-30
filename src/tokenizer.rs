@@ -1,5 +1,4 @@
 #[derive(Debug, Clone, PartialEq)]
-#[allow(dead_code)]
 pub enum TokenType {
     Word { command_position: bool },
     String,
@@ -373,6 +372,96 @@ pub fn tokenize(input: &str) -> Vec<Token> {
     }
 
     tokens
+}
+
+const RESERVED_WORDS: &[&str] = &[
+    "if", "then", "else", "elif", "fi",
+    "for", "in", "while", "until", "do", "done",
+    "case", "esac", "function", "select", "repeat", "time",
+];
+
+/// Second pass: mark command positions and identify reserved words.
+/// Also restyles `{`, `}`, `[[`, `]]` operators as ReservedWord.
+pub fn mark_command_positions(tokens: &mut [Token], input: &str) {
+    let mut expect_command = true;
+    let mut expect_in_keyword = false;
+
+    for i in 0..tokens.len() {
+        match &tokens[i].token_type {
+            TokenType::Word { .. } => {
+                let text = &input[tokens[i].start..tokens[i].end];
+
+                // Check for `in` keyword after for/case/select variable
+                if expect_in_keyword && text == "in" {
+                    tokens[i].token_type = TokenType::ReservedWord;
+                    expect_in_keyword = false;
+                    expect_command = false;
+                    continue;
+                }
+
+                if expect_command {
+                    if text == "!" {
+                        tokens[i].token_type = TokenType::ReservedWord;
+                        expect_command = true;
+                    } else if RESERVED_WORDS.contains(&text) {
+                        tokens[i].token_type = TokenType::ReservedWord;
+                        match text {
+                            "then" | "else" | "elif" | "do" | "time"
+                            | "if" | "while" | "until" => {
+                                expect_command = true;
+                            }
+                            "for" | "case" | "select" => {
+                                expect_command = false;
+                                expect_in_keyword = true;
+                            }
+                            "in" | "function" | "repeat" => {
+                                expect_command = false;
+                            }
+                            // fi, done, esac — block terminators
+                            _ => {
+                                expect_command = true;
+                            }
+                        }
+                    } else {
+                        tokens[i].token_type = TokenType::Word { command_position: true };
+                        expect_command = false;
+                    }
+                }
+                // If not expect_command, word stays as Word { command_position: false }
+            }
+            TokenType::Operator => {
+                let text = &input[tokens[i].start..tokens[i].end];
+                match text {
+                    "{" | "}" => {
+                        tokens[i].token_type = TokenType::ReservedWord;
+                        if text == "{" {
+                            expect_command = true;
+                        }
+                    }
+                    "[[" | "]]" => {
+                        tokens[i].token_type = TokenType::ReservedWord;
+                        if text == "[[" {
+                            expect_command = false;
+                        }
+                    }
+                    "|" | "||" | "|&" | "&&" | ";" | ";;" | "(" => {
+                        expect_command = true;
+                    }
+                    "&" => {
+                        expect_command = true;
+                    }
+                    _ => {
+                        // Redirects (>, >>, <, <<, <<<, )) don't change expect_command
+                    }
+                }
+            }
+            TokenType::String | TokenType::Comment | TokenType::ReservedWord => {
+                if expect_command {
+                    expect_command = false;
+                }
+            }
+        }
+    }
 }
 
 /// Match an operator at position `i`. Returns (length, operator_str) or None.
@@ -839,5 +928,289 @@ mod tests {
         // ;; should be matched, not two ;
         let tokens = tokenize("a;; b");
         assert_eq!(tokens[1], operator(1, 3));
+    }
+
+    // === Command position detection (US-003) ===
+
+    fn cmd_word(start: usize, end: usize) -> Token {
+        Token { start, end, token_type: TokenType::Word { command_position: true } }
+    }
+
+    fn reserved(start: usize, end: usize) -> Token {
+        Token { start, end, token_type: TokenType::ReservedWord }
+    }
+
+    fn tokenize_with_positions(input: &str) -> Vec<Token> {
+        let mut tokens = tokenize(input);
+        mark_command_positions(&mut tokens, input);
+        tokens
+    }
+
+    #[test]
+    fn test_first_word_is_command_position() {
+        // 'git status' — git is cmd, status is not
+        assert_eq!(
+            tokenize_with_positions("git status"),
+            vec![cmd_word(0, 3), word(4, 10)]
+        );
+    }
+
+    #[test]
+    fn test_after_pipe_is_command_position() {
+        // ls | grep foo — both ls and grep are command position
+        assert_eq!(
+            tokenize_with_positions("ls | grep foo"),
+            vec![cmd_word(0, 2), operator(3, 4), cmd_word(5, 9), word(10, 13)]
+        );
+    }
+
+    #[test]
+    fn test_after_double_pipe_is_command_position() {
+        assert_eq!(
+            tokenize_with_positions("false || echo hi"),
+            vec![cmd_word(0, 5), operator(6, 8), cmd_word(9, 13), word(14, 16)]
+        );
+    }
+
+    #[test]
+    fn test_after_double_ampersand_is_command_position() {
+        assert_eq!(
+            tokenize_with_positions("true && ls"),
+            vec![cmd_word(0, 4), operator(5, 7), cmd_word(8, 10)]
+        );
+    }
+
+    #[test]
+    fn test_after_semicolon_is_command_position() {
+        assert_eq!(
+            tokenize_with_positions("cd /tmp; ls"),
+            vec![cmd_word(0, 2), word(3, 7), operator(7, 8), cmd_word(9, 11)]
+        );
+    }
+
+    #[test]
+    fn test_after_double_semicolon_is_command_position() {
+        assert_eq!(
+            tokenize_with_positions("a;; b"),
+            vec![cmd_word(0, 1), operator(1, 3), cmd_word(4, 5)]
+        );
+    }
+
+    #[test]
+    fn test_after_open_paren_is_command_position() {
+        // (echo hi) — echo is command position
+        assert_eq!(
+            tokenize_with_positions("(echo hi)"),
+            vec![operator(0, 1), cmd_word(1, 5), word(6, 8), operator(8, 9)]
+        );
+    }
+
+    #[test]
+    fn test_after_open_brace_is_command_position() {
+        // { echo hi; } — brace is restyled, echo is command position
+        assert_eq!(
+            tokenize_with_positions("{ echo hi; }"),
+            vec![
+                reserved(0, 1),   // {
+                cmd_word(2, 6),   // echo
+                word(7, 9),       // hi
+                operator(9, 10),  // ;
+                reserved(11, 12), // }
+            ]
+        );
+    }
+
+    #[test]
+    fn test_reserved_words_detected() {
+        // if true; then echo hi; fi
+        assert_eq!(
+            tokenize_with_positions("if true; then echo hi; fi"),
+            vec![
+                reserved(0, 2),   // if
+                cmd_word(3, 7),   // true
+                operator(7, 8),   // ;
+                reserved(9, 13),  // then
+                cmd_word(14, 18), // echo
+                word(19, 21),     // hi
+                operator(21, 22), // ;
+                reserved(23, 25), // fi
+            ]
+        );
+    }
+
+    #[test]
+    fn test_after_then_is_command_position() {
+        assert_eq!(
+            tokenize_with_positions("then echo"),
+            vec![reserved(0, 4), cmd_word(5, 9)]
+        );
+    }
+
+    #[test]
+    fn test_after_else_is_command_position() {
+        assert_eq!(
+            tokenize_with_positions("else echo"),
+            vec![reserved(0, 4), cmd_word(5, 9)]
+        );
+    }
+
+    #[test]
+    fn test_after_elif_is_command_position() {
+        assert_eq!(
+            tokenize_with_positions("elif true"),
+            vec![reserved(0, 4), cmd_word(5, 9)]
+        );
+    }
+
+    #[test]
+    fn test_after_do_is_command_position() {
+        assert_eq!(
+            tokenize_with_positions("do echo"),
+            vec![reserved(0, 2), cmd_word(3, 7)]
+        );
+    }
+
+    #[test]
+    fn test_after_time_is_command_position() {
+        assert_eq!(
+            tokenize_with_positions("time ls"),
+            vec![reserved(0, 4), cmd_word(5, 7)]
+        );
+    }
+
+    #[test]
+    fn test_bang_is_reserved_and_next_is_command() {
+        // ! false — ! is reserved, false is command
+        assert_eq!(
+            tokenize_with_positions("! false"),
+            vec![reserved(0, 1), cmd_word(2, 7)]
+        );
+    }
+
+    #[test]
+    fn test_after_for_not_command_position() {
+        // for i in ... — i is NOT command position
+        assert_eq!(
+            tokenize_with_positions("for i in 1 2 3"),
+            vec![
+                reserved(0, 3), // for
+                word(4, 5),     // i (not command position)
+                reserved(6, 8), // in
+                word(9, 10),    // 1 (not command position)
+                word(11, 12),   // 2
+                word(13, 14),   // 3
+            ]
+        );
+    }
+
+    #[test]
+    fn test_after_case_not_command_position() {
+        assert_eq!(
+            tokenize_with_positions("case x"),
+            vec![reserved(0, 4), word(5, 6)]
+        );
+    }
+
+    #[test]
+    fn test_after_select_not_command_position() {
+        assert_eq!(
+            tokenize_with_positions("select opt"),
+            vec![reserved(0, 6), word(7, 10)]
+        );
+    }
+
+    #[test]
+    fn test_after_in_not_command_position() {
+        assert_eq!(
+            tokenize_with_positions("in a b c"),
+            vec![reserved(0, 2), word(3, 4), word(5, 6), word(7, 8)]
+        );
+    }
+
+    #[test]
+    fn test_braces_restyled_to_reserved() {
+        let tokens = tokenize_with_positions("{ }");
+        assert_eq!(tokens[0].token_type, TokenType::ReservedWord);
+        assert_eq!(tokens[1].token_type, TokenType::ReservedWord);
+    }
+
+    #[test]
+    fn test_double_brackets_restyled_to_reserved() {
+        let tokens = tokenize_with_positions("[[ -f file ]]");
+        assert_eq!(tokens[0].token_type, TokenType::ReservedWord); // [[
+        assert_eq!(tokens[3].token_type, TokenType::ReservedWord); // ]]
+    }
+
+    #[test]
+    fn test_after_double_bracket_not_command_position() {
+        // [[ -f file ]] — -f and file are NOT command position
+        let tokens = tokenize_with_positions("[[ -f file ]]");
+        assert_eq!(tokens[1], word(3, 5));   // -f (not cmd)
+        assert_eq!(tokens[2], word(6, 10));  // file (not cmd)
+    }
+
+    #[test]
+    fn test_second_word_not_command_position() {
+        // echo hello — hello is not in command position
+        assert_eq!(
+            tokenize_with_positions("echo hello"),
+            vec![cmd_word(0, 4), word(5, 10)]
+        );
+    }
+
+    #[test]
+    fn test_for_do_loop() {
+        // for i in 1 2 3; do echo $i; done
+        assert_eq!(
+            tokenize_with_positions("for i in 1 2 3; do echo $i; done"),
+            vec![
+                reserved(0, 3),   // for
+                word(4, 5),       // i
+                reserved(6, 8),   // in
+                word(9, 10),      // 1
+                word(11, 12),     // 2
+                word(13, 14),     // 3
+                operator(14, 15), // ;
+                reserved(16, 18), // do
+                cmd_word(19, 23), // echo
+                word(24, 26),     // $i
+                operator(26, 27), // ;
+                reserved(28, 32), // done
+            ]
+        );
+    }
+
+    #[test]
+    fn test_while_loop() {
+        assert_eq!(
+            tokenize_with_positions("while true; do echo ok; done"),
+            vec![
+                reserved(0, 5),   // while
+                cmd_word(6, 10),  // true
+                operator(10, 11), // ;
+                reserved(12, 14), // do
+                cmd_word(15, 19), // echo
+                word(20, 22),     // ok
+                operator(22, 23), // ;
+                reserved(24, 28), // done
+            ]
+        );
+    }
+
+    #[test]
+    fn test_pipe_ampersand_command_position() {
+        assert_eq!(
+            tokenize_with_positions("a |& b"),
+            vec![cmd_word(0, 1), operator(2, 4), cmd_word(5, 6)]
+        );
+    }
+
+    #[test]
+    fn test_background_ampersand_command_position() {
+        // sleep 10 & ls — after &, ls is command position
+        assert_eq!(
+            tokenize_with_positions("sleep 10 & ls"),
+            vec![cmd_word(0, 5), word(6, 8), operator(9, 10), cmd_word(11, 13)]
+        );
     }
 }

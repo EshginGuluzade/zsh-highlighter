@@ -19,7 +19,8 @@ fn main() {
         cmds_env.split('\n').filter(|s| !s.is_empty()).collect()
     };
 
-    let tokens = tokenizer::tokenize(input);
+    let mut tokens = tokenizer::tokenize(input);
+    tokenizer::mark_command_positions(&mut tokens, input);
     let highlights = classifier::classify(&tokens, &known_commands);
 
     for h in &highlights {
