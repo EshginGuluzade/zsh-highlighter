@@ -131,7 +131,7 @@
         "zsh -n plugin/zsh-highlighter.zsh passes syntax check (run with: zsh -n plugin/zsh-highlighter.zsh)"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "This is the user-facing integration point. Must handle all failure modes gracefully and silently."
     },
     {

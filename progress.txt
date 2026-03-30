@@ -70,4 +70,15 @@
 - 13 new tests: unit tests for each token type mapping + 5 end-to-end tests using tokenize+mark_command_positions+classify
 - 87 total tests passing
 
+## US-005 — Zsh plugin: core highlighting hook (complete)
+- plugin/zsh-highlighter.zsh is 37 lines (under 50 limit)
+- Binary location: checks ${0:A:h}/../bin/zsh-highlighter first, falls back to ${commands[zsh-highlighter]} (zsh hash table lookup, equivalent to command -v but no fork)
+- $_ZH_CMDS built from ${(k)commands} ${(k)builtins} ${(k)aliases} ${(k)functions} joined with newlines via ${(pj:\n:)_cmds}
+- _zh_rebuild_cmds() extracted as reusable function (needed by US-006 for zh-reload and chpwd)
+- _zh_highlight guard clauses: empty BUFFER, unchanged BUFFER, >10000 bytes
+- Binary stderr suppressed with 2>/dev/null; non-zero exit clears region_highlight
+- region_highlight populated via "${(@f)_zh_output}" which splits on newlines
+- If binary not found at load time, plugin returns silently (return 0)
+- zsh -n syntax check passes
+
 ---
