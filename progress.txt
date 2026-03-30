@@ -42,4 +42,22 @@
 - The loop also has internal end-of-input checks at the start of each state (InWord, InSingleQuote, etc.) that emit and break
 - 47 tests total covering all acceptance criteria
 
+## US-003 — Command position detection and reserved words (complete)
+- Implemented as mark_command_positions() second pass in tokenizer.rs
+- Two flags: expect_command (bool, starts true) and expect_in_keyword (bool, starts false)
+- expect_in_keyword is needed because `in` appears as a reserved word AFTER a non-command word (e.g., `for i in`) — can't detect it with expect_command alone
+- After for/case/select: expect_command=false, expect_in_keyword=true; the `in` check runs before the command position check
+- expect_in_keyword persists through non-command words (don't clear it until `in` is found or an operator resets state)
+- After if/while/until/then/else/elif/do/time: expect_command=true
+- After fi/done/esac: expect_command=true (block terminators, next thing is usually operator or new command)
+- After function/repeat: expect_command=false
+- ! in command position becomes ReservedWord with expect_command=true (next word is still command)
+- { } operators restyled to ReservedWord; { sets expect_command=true
+- [[ ]] operators restyled to ReservedWord; [[ sets expect_command=false (conditional args follow)
+- |& and & also set expect_command=true
+- Redirects (>, >>, <, <<, <<<) and ) do NOT change expect_command
+- Removed #[allow(dead_code)] from TokenType enum since all variants are now constructed
+- Changed mark_command_positions signature from &mut Vec<Token> to &mut [Token] per clippy
+- 27 new tests for command position (74 total)
+
 ---

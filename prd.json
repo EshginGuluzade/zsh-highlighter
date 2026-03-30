@@ -81,7 +81,7 @@
         "cargo clippy passes with no warnings"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Implement as a second pass over the token list from US-002. Walk the tokens, track whether the next word should be in command position using a boolean flag. When a Word is in command position, check if it matches the reserved words list — if so, change its TokenType to ReservedWord."
     },
     {
