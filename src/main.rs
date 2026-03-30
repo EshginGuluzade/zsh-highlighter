@@ -21,7 +21,7 @@ fn main() {
 
     let mut tokens = tokenizer::tokenize(input);
     tokenizer::mark_command_positions(&mut tokens, input);
-    let highlights = classifier::classify(&tokens, &known_commands);
+    let highlights = classifier::classify(&tokens, input, &known_commands);
 
     for h in &highlights {
         println!("{} {} {}", h.start, h.end, h.style);
