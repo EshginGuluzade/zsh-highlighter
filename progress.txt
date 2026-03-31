@@ -97,4 +97,13 @@
 - main.rs still uses `mod` declarations (binary crate) while lib.rs uses `pub mod` (library crate) — both compile fine, tests run against both
 - 101 total tests passing (87 unit + 14 integration)
 
+## US-008 — Homebrew formula, README, and LICENSE (complete)
+- Formula/zsh-highlighter.rb: standard Homebrew formula with desc, homepage, license MIT, depends_on rust => :build
+- Formula install method: cargo build --release, installs binary to bin/, plugin to share/zsh-highlighter/
+- Formula caveats block tells user to source the plugin from brew prefix
+- README.md: 70 lines — project name, description, installation (brew + .zshrc), what it highlights table, usage/commands, how it works, requirements, manual install, license
+- LICENSE: MIT, copyright 2026 zsh-highlighter contributors
+- All 101 tests passing, cargo build --release and clippy clean
+- All 8 user stories complete — project is shippable
+
 ---

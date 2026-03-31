@@ -200,7 +200,7 @@
         "cargo test passes"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": "Final story. After this, the project is shippable."
     }
   ]
