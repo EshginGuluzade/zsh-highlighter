@@ -5,7 +5,7 @@ Minimal, ultra-fast zsh syntax highlighter written in Rust. Zero configuration â
 ## Installation
 
 ```sh
-brew tap EshginGuluzade/zsh-highlighter https://github.com/EshginGuluzade/zsh-highlighter
+brew tap EshginGuluzade/zsh-highlighter
 brew install zsh-highlighter
 ```
 
