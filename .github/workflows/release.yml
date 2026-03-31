@@ -76,14 +76,12 @@ jobs:
         run: |
           gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern "*.sha256"
 
-      - name: Clone tap repo
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          gh repo clone EshginGuluzade/homebrew-zsh-highlighter tap
-
       - name: Update formula and push
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/EshginGuluzade/homebrew-zsh-highlighter.git tap
+
           VERSION="${GITHUB_REF_NAME#v}"
           REPO="${GITHUB_REPOSITORY}"
           TAG="${GITHUB_REF_NAME}"
