@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-13
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package
+        run: |
+          ARCHIVE="zsh-highlighter-${GITHUB_REF_NAME}-${{ matrix.target }}.tar.gz"
+          mkdir -p staging
+          cp target/${{ matrix.target }}/release/zsh-highlighter staging/
+          cp plugin/zsh-highlighter.zsh staging/
+          tar -czf "$ARCHIVE" -C staging .
+          shasum -a 256 "$ARCHIVE" > "$ARCHIVE.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: |
+            zsh-highlighter-*.tar.gz
+            zsh-highlighter-*.tar.gz.sha256
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            zsh-highlighter-*.tar.gz \
+            zsh-highlighter-*.tar.gz.sha256
+
+  update-formula:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern "*.sha256"
+
+      - name: Update Formula
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          REPO="${GITHUB_REPOSITORY}"
+          TAG="${GITHUB_REF_NAME}"
+
+          ARM_SHA=$(awk '{print $1}' zsh-highlighter-*-aarch64-apple-darwin.tar.gz.sha256)
+          INTEL_SHA=$(awk '{print $1}' zsh-highlighter-*-x86_64-apple-darwin.tar.gz.sha256)
+          LINUX_SHA=$(awk '{print $1}' zsh-highlighter-*-x86_64-unknown-linux-gnu.tar.gz.sha256)
+
+          cat > Formula/zsh-highlighter.rb << EOF
+          class ZshHighlighter < Formula
+            desc "Minimal, ultra-fast zsh syntax highlighter written in Rust"
+            homepage "https://github.com/${REPO}"
+            version "${VERSION}"
+            license "MIT"
+
+            if OS.mac? && Hardware::CPU.arm?
+              url "https://github.com/${REPO}/releases/download/${TAG}/zsh-highlighter-${TAG}-aarch64-apple-darwin.tar.gz"
+              sha256 "${ARM_SHA}"
+            elsif OS.mac? && Hardware::CPU.intel?
+              url "https://github.com/${REPO}/releases/download/${TAG}/zsh-highlighter-${TAG}-x86_64-apple-darwin.tar.gz"
+              sha256 "${INTEL_SHA}"
+            elsif OS.linux?
+              url "https://github.com/${REPO}/releases/download/${TAG}/zsh-highlighter-${TAG}-x86_64-unknown-linux-gnu.tar.gz"
+              sha256 "${LINUX_SHA}"
+            end
+
+            def install
+              bin.install "zsh-highlighter"
+              (share/"zsh-highlighter").install "zsh-highlighter.zsh"
+            end
+
+            def caveats
+              <<~EOS
+                To activate zsh-highlighter, add the following to your ~/.zshrc:
+
+                  source "\$(brew --prefix)/share/zsh-highlighter/zsh-highlighter.zsh"
+              EOS
+            end
+          end
+          EOF
+
+          # Remove heredoc indentation
+          sed -i 's/^          //' Formula/zsh-highlighter.rb
+
+      - name: Commit updated formula
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/zsh-highlighter.rb
+          git diff --cached --quiet || git commit -m "chore: update formula to ${GITHUB_REF_NAME#v}" && git push

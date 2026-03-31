@@ -1,6 +1,6 @@
 class ZshHighlighter < Formula
   desc "Minimal, ultra-fast zsh syntax highlighter written in Rust"
-  homepage "https://github.com/zsh-highlighter/zsh-highlighter"
+  homepage "https://github.com/EshginGuluzade/zsh-highlighter"
   license "MIT"
 
   depends_on "rust" => :build

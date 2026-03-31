@@ -1,7 +1,13 @@
 [package]
 name = "zsh-highlighter"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
+description = "Minimal, ultra-fast zsh syntax highlighter written in Rust"
+license = "MIT"
+repository = "https://github.com/EshginGuluzade/zsh-highlighter"
+readme = "README.md"
+keywords = ["zsh", "syntax-highlighting", "shell"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 

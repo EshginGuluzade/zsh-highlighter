@@ -5,6 +5,7 @@ Minimal, ultra-fast zsh syntax highlighter written in Rust. Zero configuration â
 ## Installation
 
 ```sh
+brew tap EshginGuluzade/zsh-highlighter https://github.com/EshginGuluzade/zsh-highlighter
 brew install zsh-highlighter
 ```
 
@@ -54,7 +55,7 @@ A ~40-line zsh plugin hooks into the line editor and calls a compiled Rust binar
 ## Manual installation
 
 ```sh
-git clone https://github.com/zsh-highlighter/zsh-highlighter.git
+git clone https://github.com/EshginGuluzade/zsh-highlighter.git
 cd zsh-highlighter
 cargo build --release
 ```
